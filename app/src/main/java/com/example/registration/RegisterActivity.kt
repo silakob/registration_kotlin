@@ -1,22 +1,25 @@
 package com.example.registration
 
-import android.Manifest
 import android.content.Intent
+import android.widget.Button
+import android.widget.EditText
+import androidx.activity.compose.setContent
+import androidx.appcompat.app.AppCompatActivity
+import com.facebook.drawee.backends.pipeline.Fresco
+import com.facebook.drawee.view.SimpleDraweeView
+import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
-import android.widget.EditText
-import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.facebook.drawee.backends.pipeline.Fresco
-import com.facebook.drawee.view.SimpleDraweeView
+import coil.compose.rememberImagePainter
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -59,10 +62,7 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     private fun initializeComponents() {
-        registerProfilePicture = findViewById<SimpleDraweeView>(R.id.registerProfilePicture)
-        val imageUri = Uri.parse("https://t3.ftcdn.net/jpg/03/46/83/96/360_F_346839683_6nAPzbhpSkIpb8pmAwufkC7c5eD7wYws.jpg")
-        registerProfilePicture.setImageURI(imageUri)
-
+        bindingProfilePicture()
         registerUsername = findViewById<EditText>(R.id.registerUsername)
         registerPassword = findViewById<EditText>(R.id.registerPassword)
         registerFullName = findViewById<EditText>(R.id.registerFullName)
@@ -72,44 +72,57 @@ class RegisterActivity : AppCompatActivity() {
         buttonSubmitRegister = findViewById<Button>(R.id.buttonSubmitRegister)
         buttonBackToMain = findViewById<Button>(R.id.buttonBackToMain)
 
-        registerProfilePicture.setOnClickListener() {
+        registerProfilePicture.setOnClickListener {
             // Open Camera
-            setContent{
-                if (shouldShowPhoto.value) {
+            setContent {
+                if (shouldShowCamera.value) {
                     CameraView(
                         outputDirectory = outputDirectory,
                         executor = cameraExecutor,
                         onImageCaptured = ::handleImageCapture,
-                        onError = { Log.e("cameraDebug", "View error:", it) }
+                        onError = { Log.e("kilo", "View error:", it) }
+                    )
+                }
+
+                if (shouldShowPhoto.value) {
+                    Image(
+                        painter = rememberImagePainter(photoUri),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
             }
-
-            if (shouldShowPhoto.value) {
-//                Image(
-//                    painter = rememberImagePainter(photoUri),
-//                    contentDescription = null,
-//                    modifier = Modifier.fillMaxSize()
-//                )
-            }
-
             requestCameraPermission()
-
             outputDirectory = getOutputDirectory()
             cameraExecutor = Executors.newSingleThreadExecutor()
-
         }
 
-        buttonBackToMain.setOnClickListener() {
+        buttonBackToMain.setOnClickListener {
             // Navigate To Main
             var intent = Intent(this, MainActivity::class.java)
             startActivity(intent)
         }
-        buttonSubmitRegister.setOnClickListener() {
+        buttonSubmitRegister.setOnClickListener {
             // Navigate To Preview
             var intent = Intent(this, PreviewActivity::class.java)
             startActivity(intent)
         }
+    }
+
+    private fun bindingProfilePicture() {
+        registerProfilePicture = findViewById<SimpleDraweeView>(R.id.registerProfilePicture)
+        val intent = intent
+        val url:String? = intent.getStringExtra("registerProfilePicture")
+        var imageUri: Uri
+        if(url != null){
+            Log.d("cameraDebug", url)
+            val file = File(url)
+            imageUri = Uri.fromFile(file)
+        }
+        else{
+            imageUri = Uri.parse("https://t3.ftcdn.net/jpg/03/46/83/96/360_F_346839683_6nAPzbhpSkIpb8pmAwufkC7c5eD7wYws.jpg")
+        }
+        registerProfilePicture.setImageURI(imageUri)
     }
 
     private fun requestCameraPermission() {
@@ -137,6 +150,11 @@ class RegisterActivity : AppCompatActivity() {
 
         photoUri = uri
         shouldShowPhoto.value = true
+        registerProfilePicture.setImageURI(photoUri)
+        cameraExecutor.shutdown()
+        var intent:Intent = Intent(this,RegisterActivity::class.java)
+        intent.putExtra("registerProfilePicture", photoUri.path)
+        startActivity(intent)
     }
 
     private fun getOutputDirectory(): File {
